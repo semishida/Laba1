@@ -238,6 +238,7 @@ func handleStackMenu(stack *Stack) {
 			fmt.Print("Введите элемент для добавления: ")
 			value, _ := reader.ReadString('\n')
 			value = strings.TrimSpace(value)
+			value = strings.TrimSuffix(value, "\n") // Удаление символа новой строки
 			stack.Push(value)
 			fmt.Println("Элемент добавлен в стек.")
 
@@ -336,33 +337,45 @@ func handleSetMenu(set *Set) {
 			fmt.Print("Введите элемент для добавления: ")
 			value, _ := reader.ReadString('\n')
 			value = strings.TrimSpace(value)
-			set.Add(value)
-			fmt.Println("Элемент добавлен в множество.")
+			if set.Contains(value) {
+				fmt.Println("Ошибка: Вы указали существующий элемент.")
+			} else {
+				set.Add(value)
+				fmt.Println("Элемент добавлен в множество.")
 
-			// Сохранение данных множества в файл после добавления элемента
-			if err := saveSetToFile(set, "set.txt"); err != nil {
-				fmt.Println("Ошибка сохранения данных множества:", err)
+				// Сохранение данных множества в файл после добавления элемента
+				if err := saveSetToFile(set, "set.txt"); err != nil {
+					fmt.Println("Ошибка сохранения данных множества:", err)
+				}
 			}
 		case 2:
 			fmt.Print("Введите элемент для проверки: ")
-			value, _ := reader.ReadString('\n')
-			value = strings.TrimSpace(value)
-			if set.Contains(value) {
+			valueToCheck, _ := reader.ReadString('\n')
+			valueToCheck = strings.TrimSpace(valueToCheck)
+
+			if set.Contains(valueToCheck) {
 				fmt.Println("Элемент найден в множестве.")
 			} else {
 				fmt.Println("Элемент не найден в множестве.")
 			}
+
 		case 3:
 			fmt.Print("Введите элемент для удаления: ")
-			value, _ := reader.ReadString('\n')
-			value = strings.TrimSpace(value)
-			set.Remove(value)
-			fmt.Println("Элемент удален из множества.")
+			valueToDelete, _ := reader.ReadString('\n')
+			valueToDelete = strings.TrimSpace(valueToDelete)
+			if set.Contains(valueToDelete) {
+				set.Remove(valueToDelete)
+				fmt.Println("Элемент удален из множества.")
 
-			// Сохранение данных множества в файл после удаления элемента
-			if err := saveSetToFile(set, "set.txt"); err != nil {
-				fmt.Println("Ошибка сохранения данных множества:", err)
+				// Удаление элемента из файла множества после удаления из множества
+				if err := deleteElementFromFile("set.txt", valueToDelete); err != nil {
+					fmt.Println("Ошибка удаления элемента из файла множества:", err)
+				}
+			} else {
+				fmt.Println("Ошибка: Элемент не найден в множестве.")
 			}
+			// Ваш код удаления элемента из множества
+
 		case 4:
 			return
 		default:
@@ -394,37 +407,48 @@ func handleHashTableMenu(hashTable *HashTable) {
 			fmt.Print("Введите ключ для добавления: ")
 			key, _ := reader.ReadString('\n')
 			key = strings.TrimSpace(key)
-			fmt.Print("Введите значение для добавления: ")
-			value, _ := reader.ReadString('\n')
-			value = strings.TrimSpace(value)
-			hashTable.Put(key, value)
-			fmt.Println("Элемент добавлен в хеш-таблицу.")
+			if _, found := hashTable.Get(key); found {
+				fmt.Println("Ошибка: Вы указали существующий ключ.")
+			} else {
+				fmt.Print("Введите значение для добавления: ")
+				value, _ := reader.ReadString('\n')
+				value = strings.TrimSpace(value)
+				hashTable.Put(key, value)
+				fmt.Println("Элемент добавлен в хеш-таблицу.")
 
-			// Сохранение данных хеш-таблицы в файл после добавления элемента
-			if err := saveHashTableToFile(hashTable, "hash_table.txt"); err != nil {
-				fmt.Println("Ошибка сохранения данных хеш-таблицы:", err)
+				// Сохранение данных хеш-таблицы в файл после добавления элемента
+				if err := saveHashTableToFile(hashTable, "hash_table.txt"); err != nil {
+					fmt.Println("Ошибка сохранения данных хеш-таблицы:", err)
+				}
 			}
 		case 2:
 			fmt.Print("Введите ключ для удаления: ")
-			key, _ := reader.ReadString('\n')
-			key = strings.TrimSpace(key)
-			hashTable.Delete(key) // Вызывайте Delete для удаления элемента
-			fmt.Println("Элемент удален из хеш-таблицы.")
+			keyToDelete, _ := reader.ReadString('\n')
+			keyToDelete = strings.TrimSpace(keyToDelete)
+			if _, found := hashTable.Get(keyToDelete); found {
+				hashTable.Delete(keyToDelete)
+				fmt.Println("Элемент удален из хеш-таблицы.")
 
-			// Сохранение данных хеш-таблицы в файл после удаления элемента
-			if err := saveHashTableToFile(hashTable, "hash_table.txt"); err != nil {
-				fmt.Println("Ошибка сохранения данных хеш-таблицы:", err)
+				// Удаление элемента из файла хеш-таблицы после удаления из хеш-таблицы
+				if err := deleteElementFromFile("hash_table.txt", keyToDelete); err != nil {
+					fmt.Println("Ошибка удаления элемента из файла хеш-таблицы:", err)
+				}
+			} else {
+				fmt.Println("Ошибка: Элемент не найден в хеш-таблице.")
 			}
+
 		case 3:
 			fmt.Print("Введите ключ для чтения: ")
-			key, _ := reader.ReadString('\n')
-			key = strings.TrimSpace(key)
-			value, found := hashTable.Get(key)
+			keyToRead, _ := reader.ReadString('\n')
+			keyToRead = strings.TrimSpace(keyToRead)
+
+			value, found := hashTable.Get(keyToRead)
 			if found {
-				fmt.Printf("Значение для ключа %s: %s\n", key, value)
+				fmt.Printf("Значение для ключа %s: %s\n", keyToRead, value)
 			} else {
 				fmt.Println("Элемент не найден в хеш-таблице.")
 			}
+
 		case 4:
 			return
 		default:
@@ -500,7 +524,7 @@ func saveHashTableToFile(hashTable *HashTable, filename string) error {
 	defer file.Close()
 
 	for key, value := range hashTable.data {
-		_, err := fmt.Fprintf(file, "%s=%s\n", key, value)
+		_, err := fmt.Fprintf(file, "%s:%s\n", key, value)
 		if err != nil {
 			return err
 		}
@@ -597,3 +621,61 @@ func loadHashTableFromFile(hashTable *HashTable, filename string) error {
 
 	return nil
 }
+func deleteElementFromFile(filename, elementToDelete string) error {
+	// Чтение содержимого файла в массив строк
+	lines, err := readLinesFromFile(filename)
+	if err != nil {
+		return err
+	}
+
+	// Поиск элемента в массиве строк и удаление его, если он существует
+	for i, line := range lines {
+		if line == elementToDelete {
+			lines = append(lines[:i], lines[i+1:]...)
+			break
+		}
+	}
+
+	// Запись обновленных данных обратно в файл
+	err = writeLinesToFile(filename, lines)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+func readLinesFromFile(filename string) ([]string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+
+	return lines, scanner.Err()
+}
+
+// Функция для записи массива строк в файл
+func writeLinesToFile(filename string, lines []string) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	for _, line := range lines {
+		_, err := fmt.Fprintln(file, line)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Функция для чтения строк из файла и возврата их в виде массива
