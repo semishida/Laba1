@@ -122,26 +122,27 @@ func (queue *Queue) Dequeue() (string, error) {
 }
 
 // NewHashTable создает новую хеш-таблицу.
-func NewHashTable() *HashTable {
-	return &HashTable{}
+func NewHashTable(size int) *HashTable {
+	return &HashTable{data: make([]hashTableEntry, size)}
 }
 
 // Put добавляет пару ключ:значение в хеш-таблицу.
 func (ht *HashTable) Put(key, value string) {
-	for i, entry := range ht.data {
-		if entry.key == key {
-			ht.data[i].value = value
+	index := hash(key, len(ht.data))
+	for i := index; i < len(ht.data); i++ {
+		if ht.data[i].key == "" {
+			ht.data[i] = hashTableEntry{key: key, value: value}
 			return
 		}
 	}
-	ht.data = append(ht.data, hashTableEntry{key: key, value: value})
 }
 
 // Get возвращает значение по ключу из хеш-таблицы.
 func (ht *HashTable) Get(key string) (string, bool) {
-	for _, entry := range ht.data {
-		if entry.key == key {
-			return entry.value, true
+	index := hash(key, len(ht.data))
+	for i := index; i < len(ht.data); i++ {
+		if ht.data[i].key == key {
+			return ht.data[i].value, true
 		}
 	}
 	return "", false
@@ -149,31 +150,37 @@ func (ht *HashTable) Get(key string) (string, bool) {
 
 // Delete удаляет запись из хеш-таблицы по ключу.
 func (ht *HashTable) Delete(key string) {
-	for i, entry := range ht.data {
-		if entry.key == key {
-			ht.data = append(ht.data[:i], ht.data[i+1:]...)
+	index := hash(key, len(ht.data))
+	for i := index; i < len(ht.data); i++ {
+		if ht.data[i].key == key {
+			ht.data[i] = hashTableEntry{}
 			return
 		}
 	}
 }
 
+func hash(key string, size int) int {
+	hashVal := 0
+	for i := 0; i < len(key); i++ {
+		hashVal = (31*hashVal + int(key[i])) % size
+	}
+	return hashVal
+}
+
 func main() {
-	// Определение флагов для аргументов командной строки
 	stackFile := flag.String("stack", "stack.txt", "Файл для стека")
 	queueFile := flag.String("queue", "queue.txt", "Файл для очереди")
 	setFile := flag.String("set", "set.txt", "Файл для множества")
 	tableFile := flag.String("table", "hash_table.txt", "Файл для хеш-таблицы")
+	hashTableSize := flag.Int("table-size", 100, "Размер хеш-таблицы")
 
-	// Анализ аргументов командной строки
 	flag.Parse()
 
-	// Создание объектов стека, очереди, множества и хеш-таблицы
 	stack := &Stack{}
 	queue := &Queue{}
 	set := NewSet()
-	hashTable := NewHashTable()
+	hashTable := NewHashTable(*hashTableSize)
 
-	// Загрузка данных из файлов, используя значения из аргументов командной строки
 	if err := loadStackFromFile(stack, *stackFile); err != nil {
 		fmt.Println("Ошибка загрузки данных стека:", err)
 	}
@@ -186,7 +193,7 @@ func main() {
 		fmt.Println("Ошибка загрузки данных множества:", err)
 	}
 
-	if err := loadHashTableFromFile(hashTable, "hash_table.txt"); err != nil {
+	if err := loadHashTableFromFile(hashTable, *tableFile); err != nil {
 		fmt.Println("Ошибка загрузки данных хеш-таблицы:", err)
 	}
 
@@ -216,35 +223,30 @@ func main() {
 		case 3:
 			handleSetMenu(set)
 
-			// Сохранение данных множества в файл после его модификации
-			if err := saveSetToFile(set, "set.txt"); err != nil {
+			if err := saveSetToFile(set, *setFile); err != nil {
 				fmt.Println("Ошибка сохранения данных множества:", err)
 			}
 
 		case 4:
 			handleHashTableMenu(hashTable, tableFile)
 
-			// Сохранение данных хеш-таблицы в файл после его модификации
-			if err := saveHashTableToFile(hashTable, "hash_table.txt"); err != nil {
+			if err := saveHashTableToFile(hashTable, *tableFile); err != nil {
 				fmt.Println("Ошибка сохранения данных хеш-таблицы:", err)
 			}
 		case 5:
-			// Сохранение данных в файл перед выходом из программы
-			if err := saveStackToFile(stack, "stack.txt"); err != nil {
+			if err := saveStackToFile(stack, *stackFile); err != nil {
 				fmt.Println("Ошибка сохранения данных стека:", err)
 			}
 
-			if err := saveQueueToFile(queue, "queue.txt"); err != nil {
+			if err := saveQueueToFile(queue, *queueFile); err != nil {
 				fmt.Println("Ошибка сохранения данных очереди:", err)
 			}
 
-			// Сохранение данных множества в файл перед выходом из программы
-			if err := saveSetToFile(set, "set.txt"); err != nil {
+			if err := saveSetToFile(set, *setFile); err != nil {
 				fmt.Println("Ошибка сохранения данных множества:", err)
 			}
 
-			// Сохранение данных хеш-таблицы в файл перед выходом из программы
-			if err := saveHashTableToFile(hashTable, "hash_table.txt"); err != nil {
+			if err := saveHashTableToFile(hashTable, *tableFile); err != nil {
 				fmt.Println("Ошибка сохранения данных хеш-таблицы:", err)
 			}
 
@@ -564,9 +566,11 @@ func saveHashTableToFile(hashTable *HashTable, filename string) error {
 	defer file.Close()
 
 	for _, entry := range hashTable.data {
-		_, err := fmt.Fprintf(file, "%s:%s\n", entry.key, entry.value)
-		if err != nil {
-			return err
+		if entry.key != "" {
+			_, err := fmt.Fprintf(file, "%s:%s\n", entry.key, entry.value)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -647,7 +651,7 @@ func loadHashTableFromFile(hashTable *HashTable, filename string) error {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		parts := strings.Split(line, ":")
+		parts := strings.SplitN(line, ":", 2) // Используем SplitN для разделения только по первому символу ":"
 		if len(parts) == 2 {
 			key := parts[0]
 			value := parts[1]
@@ -661,6 +665,7 @@ func loadHashTableFromFile(hashTable *HashTable, filename string) error {
 
 	return nil
 }
+
 func deleteElementFromFile(filename, elementToDelete string) error {
 	// Чтение содержимого файла в массив строк
 	lines, err := readLinesFromFile(filename)
